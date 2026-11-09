@@ -21,7 +21,7 @@ Echo is a **private, invite-only Telegram relay**. Members never sit in a shared
 - Voice is passed through in the original language and is not translated
 - Stickers/video notes get the custom name immediately before the media because Telegram does not support captions for those types
 - Per-user rate limit and global Telegram send throttle
-- Translation failure is reported to the sender instead of silently dropping the message
+- Failed translations are marked with ❌ on the source message; the owner is notified
 - No message body is written to SQLite
 - Admin statistics: messages, media, translation errors and provider calls
 - Owner broadcast, translated per member
@@ -121,7 +121,7 @@ Configure the order in `.env`:
 PROVIDERS=gemini,deepl
 ```
 
-The first provider is primary. If it fails, Echo tries the next provider.
+The first provider is primary. Temporary API errors are retried before Echo moves to the next provider (Gemini makes up to three attempts; DeepL and OpenAI-compatible providers retry once). Permanent errors move directly to the next provider.
 
 ### Gemini
 
@@ -181,7 +181,8 @@ The translation prompt treats user text as untrusted data and explicitly tells t
 
 - Per-user rate limit: 20 messages/minute by default.
 - Global send throttle: 20 Telegram messages/sec by default.
-- Telegram 429 responses are retried.
+- Temporary translation API errors are retried before provider fallback.
+- Translation success does not add a reaction; failed translations are marked with ❌.
 - Temporary Telegram API errors are retried.
 - If a recipient blocks the bot, that recipient is automatically paused (`started=0`) and the owner is notified.
 - Messages from the same sender are serialized so rapid messages cannot overtake one another.

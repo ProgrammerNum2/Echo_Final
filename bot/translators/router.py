@@ -1,8 +1,9 @@
 from __future__ import annotations
+import asyncio
 import logging
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
-from .base import TranslationError, Translator
+from .base import RetryableTranslationError, TranslationError, Translator
 
 log = logging.getLogger(__name__)
 
@@ -54,14 +55,24 @@ class TranslatorRouter:
     async def _call(self, targets, text, source):
         last = None
         for provider in self.providers:
-            try:
-                if self._call_hook:
-                    await self._call_hook(provider.name)
-                out = await provider.translate(text, source, targets)
-                return out
-            except TranslationError as e:
-                log.warning("Provider %s failed: %s", provider.name, e)
-                last = e
+            for attempt in range(2):
+                try:
+                    if self._call_hook:
+                        await self._call_hook(provider.name)
+                    out = await provider.translate(text, source, targets)
+                    return out
+                except RetryableTranslationError as e:
+                    last = e
+                    if attempt == 0:
+                        log.warning("Provider %s hit a temporary API error; retrying once: %s", provider.name, e)
+                        await asyncio.sleep(0.75)
+                        continue
+                    log.warning("Provider %s failed after retry: %s", provider.name, e)
+                    break
+                except TranslationError as e:
+                    log.warning("Provider %s failed: %s", provider.name, e)
+                    last = e
+                    break
         raise TranslationError(f"all translation providers failed: {last}")
 
     async def close(self):

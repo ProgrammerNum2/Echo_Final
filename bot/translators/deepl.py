@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from .base import TranslationError, Translator
+from .base import RetryableTranslationError, TranslationError, Translator
 from .http import HttpClient
 from ..languages import code_for
 
@@ -25,14 +25,17 @@ class DeepLTranslator(Translator):
                                              headers={"Authorization": f"DeepL-Auth-Key {self._key}"},
                                              data=params)
             if r.status_code != 200:
-                raise TranslationError(f"DeepL HTTP {r.status_code}: {r.text[:300]}")
+                error = f"DeepL HTTP {r.status_code}: {r.text[:300]}"
+                if r.status_code in {408, 429, 500, 502, 503, 504}:
+                    raise RetryableTranslationError(error)
+                raise TranslationError(error)
             data = r.json()
             text_out = data["translations"][0]["text"]
             return target, text_out
         except TranslationError:
             raise
         except Exception as e:
-            raise TranslationError(f"DeepL request failed: {e}") from e
+            raise RetryableTranslationError(f"DeepL request failed: {e}") from e
 
     async def translate(self, text: str, source: str, targets: list[str]) -> dict[str, str]:
         results = await asyncio.gather(*(self._one(text, source, t) for t in targets), return_exceptions=True)
@@ -44,7 +47,10 @@ class DeepLTranslator(Translator):
             else:
                 out[result[0]] = result[1]
         if errors or len(out) != len(targets):
-            raise TranslationError("; ".join(errors) or "DeepL returned incomplete results")
+            message = "; ".join(errors) or "DeepL returned incomplete results"
+            if any(isinstance(result, RetryableTranslationError) for result in results):
+                raise RetryableTranslationError(message)
+            raise TranslationError(message)
         return out
 
     async def close(self):

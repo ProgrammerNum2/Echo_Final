@@ -4,6 +4,10 @@ from abc import ABC, abstractmethod
 class TranslationError(Exception):
     pass
 
+class RetryableTranslationError(TranslationError):
+    """A temporary provider/API failure that is safe to retry once."""
+
+
 class Translator(ABC):
     name = "base"
     @abstractmethod

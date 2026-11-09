@@ -46,13 +46,11 @@ async def _process_text(message, bot, db, cfg, translator, send):
     report=await relay_text(sender=user,text=text,db=db,translator=translator,send=send,
                             admin_view=admin_view,owner_id=owner_id)
     if report.translation_failed:
-        await message.reply("⚠️ Translation failed. Your message was not delivered.")
+        try: await message.react([ReactionTypeEmoji(emoji="❌")])
+        except TelegramAPIError: pass
         await notify_owner(bot,db,"⚠️ Translation failed. Check translator/API settings.")
     elif report.recipients==0:
         await message.reply("ℹ️ Nobody else is connected yet.")
-    elif report.delivered:
-        try: await message.react([ReactionTypeEmoji(emoji="👍")])
-        except TelegramAPIError: pass
     if report.blocked:
         await notify_owner(bot,db,"⚠️ One or more members blocked the bot and were paused.")
 
@@ -93,7 +91,8 @@ async def on_media_or_unsupported(message: Message, bot: Bot, db: Database, cfg:
                 translations=await translator.translate(caption,user.lang,list(targets.values()))
             except TranslationError:
                 await db.bump_stat("translation_errors")
-                await message.reply("⚠️ The media was not delivered because its caption could not be translated.")
+                try: await message.react([ReactionTypeEmoji(emoji="❌")])
+                except TelegramAPIError: pass
                 await notify_owner(bot,db,"⚠️ Media caption translation failed.")
                 return
 
