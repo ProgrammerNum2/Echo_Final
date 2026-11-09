@@ -94,6 +94,8 @@ def load_config() -> Config:
         raise ConfigError("OWNER_LANGUAGE is not a valid language name")
 
     providers = [p.strip().casefold() for p in _env("PROVIDERS", "gemini").split(",") if p.strip()]
+    # Accept the shorter name commonly used in .env files.
+    providers = ["openai_compat" if p == "openai" else p for p in providers]
     if not providers:
         raise ConfigError("PROVIDERS is empty")
     allowed = {"gemini", "deepl", "openai_compat"}
@@ -103,7 +105,7 @@ def load_config() -> Config:
 
     gemini_key = _env("GEMINI_API_KEY")
     deepl_key = _env("DEEPL_API_KEY")
-    openai_key = _env("OPENAI_COMPAT_API_KEY")
+    openai_key = _first_env("OPENAI_COMPAT_API_KEY", "OPENAI_API_KEY")
 
     if "gemini" in providers and not gemini_key:
         raise ConfigError("GEMINI_API_KEY is required because gemini is in PROVIDERS")
@@ -124,8 +126,8 @@ def load_config() -> Config:
         deepl_api_key=deepl_key,
         deepl_api_base=_env("DEEPL_API_BASE", "https://api-free.deepl.com"),
         openai_api_key=openai_key,
-        openai_base_url=_env("OPENAI_COMPAT_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
-        openai_model=_env("OPENAI_COMPAT_MODEL", "gpt-5-mini"),
+        openai_base_url=_first_env("OPENAI_COMPAT_BASE_URL", "OPENAI_BASE_URL", default="https://api.openai.com/v1").rstrip("/"),
+        openai_model=_first_env("OPENAI_COMPAT_MODEL", "OPENAI_MODEL", default="gpt-5-mini"),
         max_chars=_int("MAX_MESSAGE_CHARS", 3500),
         invite_ttl_hours=_int("INVITE_TTL_HOURS", 72),
         send_rate=_int("SEND_RATE_PER_SEC", 20),

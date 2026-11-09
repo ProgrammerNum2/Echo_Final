@@ -156,10 +156,10 @@ OPENAI_COMPAT_MODEL=...
 Then:
 
 ```env
-PROVIDERS=gemini,openai_compat,deepl
+PROVIDERS=gemini,openai,deepl
 ```
 
-A local OpenAI-compatible gateway can also be used by changing `OPENAI_COMPAT_BASE_URL`.
+`openai` is accepted as a shorthand for `openai_compat`. The configuration also accepts `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` as aliases for their `OPENAI_COMPAT_*` variables. A local OpenAI-compatible gateway can also be used by changing the base URL.
 
 ## Translation optimization
 
